@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install only database dependencies
+RUN pip install --no-cache-dir \
+    mysql-connector-python \
+    python-dotenv
+
+COPY db_setup.py .
+
+ENTRYPOINT ["python", "db_setup.py"]
+CMD ["status"]

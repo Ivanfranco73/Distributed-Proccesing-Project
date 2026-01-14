@@ -1,0 +1,101 @@
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: airly-mariadb
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD:-airly_root_pass}
+      - MARIADB_DATABASE=airly
+      - MARIADB_USER=airly
+      - MARIADB_PASSWORD=${MARIADB_PASSWORD:-airly_pass}
+      - TZ=Europe/Warsaw
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  db-setup:
+    build:
+      context: .
+      dockerfile: Dockerfile.db_setup
+    container_name: airly-db-setup
+    profiles:
+      - tools
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_NAME=airly
+      - DB_USER=airly
+      - DB_PASSWORD=${MARIADB_PASSWORD:-airly_pass}
+    volumes:
+      - ./data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  airly-collector:
+    build: .
+    container_name: airly-collector
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - TZ=Europe/Warsaw
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_NAME=airly
+      - DB_USER=airly
+      - DB_PASSWORD=${MARIADB_PASSWORD:-airly_pass}
+    volumes:
+      - ./data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  airly-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: airly-api
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_NAME=airly
+      - DB_USER=airly
+      - DB_PASSWORD=${MARIADB_PASSWORD:-airly_pass}
+      - API_KEY=${API_KEY}
+    ports:
+      - "8000:8000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mariadb_data:
