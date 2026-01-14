@@ -4,7 +4,8 @@ Airly Data API
 REST API for adding and retrieving air quality measurements.
 """
 
-from fastapi import FastAPI, HTTPException, Depends, Header, Query
+from fastapi import FastAPI, HTTPException, Depends, Header, Query, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List
@@ -12,11 +13,22 @@ import mysql.connector
 from mysql.connector import Error as MySQLError
 import os
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+# Rate limiter setup
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="Airly Data API",
     description="API for air quality data storage and retrieval",
     version="1.0.0"
 )
+
+# Add rate limiter to app
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Database configuration
 DB_CONFIG = {
@@ -24,8 +36,19 @@ DB_CONFIG = {
     "port": int(os.getenv("DB_PORT", 3306)),
     "database": os.getenv("DB_NAME", "airly"),
     "user": os.getenv("DB_USER", "airly"),
-    "password": os.getenv("DB_PASSWORD", "airly_pass")
+    "password": os.getenv("DB_PASSWORD", "airly_pass"),
 }
+
+# Add SSL configuration if certificates are available
+ssl_ca = os.getenv("DB_SSL_CA")
+ssl_cert = os.getenv("DB_SSL_CERT")
+ssl_key = os.getenv("DB_SSL_KEY")
+
+if ssl_ca and ssl_cert and ssl_key:
+    DB_CONFIG["ssl_ca"] = ssl_ca
+    DB_CONFIG["ssl_cert"] = ssl_cert
+    DB_CONFIG["ssl_key"] = ssl_key
+    DB_CONFIG["ssl_verify_cert"] = True
 
 API_KEY = os.getenv("API_KEY", "")
 
@@ -88,16 +111,19 @@ def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")):
 # Endpoints
 @app.get("/health")
 def health_check():
-    """Health check endpoint."""
+    """Health check endpoint (no auth required)."""
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
 @app.get("/measurements", response_model=List[dict])
+@limiter.limit("100/minute")
 def get_measurements(
+    request: Request,
     limit: int = Query(default=10, le=1000),
     city: Optional[str] = None,
     station_id: Optional[int] = None,
-    conn=Depends(get_db)
+    conn=Depends(get_db),
+    api_key: str = Depends(verify_api_key)
 ):
     """Get recent measurements."""
     cursor = conn.cursor(dictionary=True)
@@ -131,10 +157,13 @@ def get_measurements(
 
 
 @app.get("/measurements/latest")
+@limiter.limit("100/minute")
 def get_latest_measurement(
+    request: Request,
     city: Optional[str] = None,
     station_id: Optional[int] = None,
-    conn=Depends(get_db)
+    conn=Depends(get_db),
+    api_key: str = Depends(verify_api_key)
 ):
     """Get the most recent measurement."""
     cursor = conn.cursor(dictionary=True)
@@ -168,7 +197,12 @@ def get_latest_measurement(
 
 
 @app.get("/measurements/stats")
-def get_stats(conn=Depends(get_db)):
+@limiter.limit("100/minute")
+def get_stats(
+    request: Request,
+    conn=Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
     """Get database statistics."""
     cursor = conn.cursor(dictionary=True)
     
@@ -196,7 +230,9 @@ def get_stats(conn=Depends(get_db)):
 
 
 @app.post("/measurements")
+@limiter.limit("100/minute")
 def add_measurement(
+    request: Request,
     data: MeasurementInput,
     conn=Depends(get_db),
     api_key: str = Depends(verify_api_key)
@@ -245,7 +281,9 @@ def add_measurement(
 
 
 @app.delete("/measurements/{measurement_id}")
+@limiter.limit("100/minute")
 def delete_measurement(
+    request: Request,
     measurement_id: int,
     conn=Depends(get_db),
     api_key: str = Depends(verify_api_key)

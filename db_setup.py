@@ -24,6 +24,11 @@ DB_NAME = os.getenv("DB_NAME", "airly")
 DB_USER = os.getenv("DB_USER", "airly")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "airly_pass")
 
+# Database SSL Configuration
+DB_SSL_CA = os.getenv("DB_SSL_CA")
+DB_SSL_CERT = os.getenv("DB_SSL_CERT")
+DB_SSL_KEY = os.getenv("DB_SSL_KEY")
+
 # CSV file for migration
 CSV_FILE = os.getenv("CSV_FILE", "./data/airly_gdansk.csv")
 DEFAULT_STATION_ID = int(os.getenv("INSTALLATION_ID", "3387"))
@@ -73,6 +78,13 @@ def get_db_connection(database=None):
         }
         if database:
             config["database"] = database
+        
+        # Add SSL configuration if certificates are available
+        if DB_SSL_CA and DB_SSL_CERT and DB_SSL_KEY:
+            config["ssl_ca"] = DB_SSL_CA
+            config["ssl_cert"] = DB_SSL_CERT
+            config["ssl_key"] = DB_SSL_KEY
+            config["ssl_verify_cert"] = True
         
         connection = mysql.connector.connect(**config)
         return connection

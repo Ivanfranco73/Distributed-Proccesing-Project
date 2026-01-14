@@ -54,6 +54,11 @@ class Config:
     db_password: str
     enable_database: bool
     
+    # Database SSL
+    db_ssl_ca: Optional[str]
+    db_ssl_cert: Optional[str]
+    db_ssl_key: Optional[str]
+    
     # CSV backup
     csv_file: str
     enable_csv: bool
@@ -81,6 +86,9 @@ class Config:
             db_user=os.getenv("DB_USER", "airly"),
             db_password=os.getenv("DB_PASSWORD", "airly_pass"),
             enable_database=os.getenv("ENABLE_DATABASE", "true").lower() == "true",
+            db_ssl_ca=os.getenv("DB_SSL_CA"),
+            db_ssl_cert=os.getenv("DB_SSL_CERT"),
+            db_ssl_key=os.getenv("DB_SSL_KEY"),
             csv_file=os.getenv("CSV_FILE", "/data/airly_gdansk.csv"),
             enable_csv=os.getenv("ENABLE_CSV", "false").lower() == "true",
             hsbi_api_url=os.getenv("HSBI_API_URL", ""),
@@ -208,15 +216,25 @@ class AirlyCollector:
     
     def save_to_database(self, measurement: Measurement) -> bool:
         """Save measurement to MariaDB."""
+        # Build connection config
+        conn_config = {
+            "host": self.config.db_host,
+            "port": self.config.db_port,
+            "database": self.config.db_name,
+            "user": self.config.db_user,
+            "password": self.config.db_password,
+            "connect_timeout": 10
+        }
+        
+        # Add SSL configuration if certificates are available
+        if self.config.db_ssl_ca and self.config.db_ssl_cert and self.config.db_ssl_key:
+            conn_config["ssl_ca"] = self.config.db_ssl_ca
+            conn_config["ssl_cert"] = self.config.db_ssl_cert
+            conn_config["ssl_key"] = self.config.db_ssl_key
+            conn_config["ssl_verify_cert"] = True
+        
         try:
-            conn = mysql.connector.connect(
-                host=self.config.db_host,
-                port=self.config.db_port,
-                database=self.config.db_name,
-                user=self.config.db_user,
-                password=self.config.db_password,
-                connect_timeout=10
-            )
+            conn = mysql.connector.connect(**conn_config)
         except MySQLError as e:
             logger.error(f"Database connection failed: {e}")
             return False

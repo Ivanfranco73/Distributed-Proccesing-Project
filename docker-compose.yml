@@ -12,8 +12,16 @@ services:
     volumes:
       - mariadb_data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    ports:
-      - "3306:3306"
+      - ./certs/mysql/ca.pem:/etc/mysql/ssl/ca.pem:ro
+      - ./certs/mysql/server-cert.pem:/etc/mysql/ssl/server-cert.pem:ro
+      - ./certs/mysql/server-key.pem:/etc/mysql/ssl/server-key.pem:ro
+    command: >
+      --ssl-ca=/etc/mysql/ssl/ca.pem
+      --ssl-cert=/etc/mysql/ssl/server-cert.pem
+      --ssl-key=/etc/mysql/ssl/server-key.pem
+      --require-secure-transport=ON
+    # ports:
+    #   - "3306:3306"  # Closed - internal only
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
@@ -41,8 +49,14 @@ services:
       - DB_NAME=airly
       - DB_USER=airly
       - DB_PASSWORD=${MARIADB_PASSWORD:-airly_pass}
+      - DB_SSL_CA=/etc/ssl/mysql/ca.pem
+      - DB_SSL_CERT=/etc/ssl/mysql/client-cert.pem
+      - DB_SSL_KEY=/etc/ssl/mysql/client-key.pem
     volumes:
       - ./data:/data
+      - ./certs/mysql/ca.pem:/etc/ssl/mysql/ca.pem:ro
+      - ./certs/mysql/client-cert.pem:/etc/ssl/mysql/client-cert.pem:ro
+      - ./certs/mysql/client-key.pem:/etc/ssl/mysql/client-key.pem:ro
     logging:
       driver: json-file
       options:
@@ -65,8 +79,14 @@ services:
       - DB_NAME=airly
       - DB_USER=airly
       - DB_PASSWORD=${MARIADB_PASSWORD:-airly_pass}
+      - DB_SSL_CA=/etc/ssl/mysql/ca.pem
+      - DB_SSL_CERT=/etc/ssl/mysql/client-cert.pem
+      - DB_SSL_KEY=/etc/ssl/mysql/client-key.pem
     volumes:
       - ./data:/data
+      - ./certs/mysql/ca.pem:/etc/ssl/mysql/ca.pem:ro
+      - ./certs/mysql/client-cert.pem:/etc/ssl/mysql/client-cert.pem:ro
+      - ./certs/mysql/client-key.pem:/etc/ssl/mysql/client-key.pem:ro
     logging:
       driver: json-file
       options:
@@ -88,7 +108,14 @@ services:
       - DB_NAME=airly
       - DB_USER=airly
       - DB_PASSWORD=${MARIADB_PASSWORD:-airly_pass}
+      - DB_SSL_CA=/etc/ssl/mysql/ca.pem
+      - DB_SSL_CERT=/etc/ssl/mysql/client-cert.pem
+      - DB_SSL_KEY=/etc/ssl/mysql/client-key.pem
       - API_KEY=${API_KEY}
+    volumes:
+      - ./certs/mysql/ca.pem:/etc/ssl/mysql/ca.pem:ro
+      - ./certs/mysql/client-cert.pem:/etc/ssl/mysql/client-cert.pem:ro
+      - ./certs/mysql/client-key.pem:/etc/ssl/mysql/client-key.pem:ro
     ports:
       - "8000:8000"
     logging:
