@@ -9,6 +9,7 @@ This was developed as a university assignment for distributed systems. The archi
 - **Server (this repository)**: Provides the REST API and MariaDB database - the fixed, shared infrastructure
 - **Collectors (various)**: Students implement their own data collection programs (Python, Node-RED, etc.) that send measurements to the central server
 
+```
 ┌─────────────────┐      
 │  Collector A    │──────┐
 │  (Python)       │      │
@@ -247,16 +248,16 @@ The `measurements` table stores all collected data:
 ## Infrastructure (Production)
 
 ```
-┌──────────────────┐       ┌──────────────────┐      ┌──────────────────┐
+┌──────────────────┐       ┌──────────────────┐       ┌──────────────────┐
 │   Internet       │─────▶│   HAProxy        │─────▶│   FastAPI        │
-│   Clients        │ TLS   │   (TLS term.)    │      │   (port 8000)    │
-└──────────────────┘       └──────────────────┘      └──────────────────┘
-                                                            │
-                                                            ▼ SSL
-                                                    ┌──────────────────┐
-                                                    │   MariaDB        │
-                                                    │   (port 3306)    │
-                                                    └──────────────────┘
+│   Clients        │ TLS   │   (TLS term.)    │       │   (port 8000)    │
+└──────────────────┘       └──────────────────┘       └──────────────────┘
+                                                               │
+                                                               ▼ SSL
+                                                      ┌──────────────────┐
+                                                      │   MariaDB        │
+                                                      │   (port 3306)    │
+                                                      └──────────────────┘
 ```
 
 ---
