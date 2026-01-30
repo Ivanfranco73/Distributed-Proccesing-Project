@@ -1,6 +1,7 @@
 # API credentials and environment variables
 credentials.json
 .env
+API_GUIDE.md
 
 # SSL Certificates (sensitive!)
 certs/
@@ -51,3 +52,4 @@ wheels/
 Thumbs.db
 
 .github/prompts
+flows (2).json
